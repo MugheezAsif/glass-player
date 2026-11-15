@@ -17,7 +17,14 @@
   </Window.Resources>
 
   <Grid x:Name="Root" Margin="16" Opacity="0" RenderTransformOrigin="0.5,0.5">
-    <Grid.RenderTransform><ScaleTransform x:Name="RootScale"/></Grid.RenderTransform>
+    <Grid.RenderTransform>
+      <TransformGroup>
+        <ScaleTransform x:Name="RootScale"/>
+        <!-- liquid elasticity: the card leans and stretches toward the cursor -->
+        <ScaleTransform x:Name="ElasticScale"/>
+        <TranslateTransform x:Name="ElasticShift"/>
+      </TransformGroup>
+    </Grid.RenderTransform>
 
     <!-- soft floating shadow -->
     <Border x:Name="Shadow" CornerRadius="30" Background="#59000000">
@@ -31,23 +38,10 @@
     <Grid x:Name="Card">
       <!-- all glass background layers, baked into one cached picture (redrawn only when the backdrop or accent changes) -->
       <Grid x:Name="Glass" CacheMode="BitmapCache">
+      <!-- the backdrop arrives already blurred, refracted at the edges and chromatically split (LiquidGlass.cs) -->
       <Image x:Name="Backdrop" Margin="-28" Stretch="Fill" RenderOptions.BitmapScalingMode="HighQuality"/>
-      <!-- lens: a slightly shrunk copy shows only at the rim, so the edges bend what's behind like thick glass -->
-      <Image x:Name="BackdropEdge" Margin="-28" Stretch="Fill" RenderOptions.BitmapScalingMode="HighQuality"
-             RenderTransformOrigin="0.5,0.5" Source="{Binding Source, ElementName=Backdrop}">
-        <Image.RenderTransform><ScaleTransform ScaleX="0.9" ScaleY="0.86"/></Image.RenderTransform>
-        <Image.OpacityMask>
-          <VisualBrush Stretch="Fill">
-            <VisualBrush.Visual>
-              <Grid Width="396" Height="256">
-                <Border Margin="9,12" CornerRadius="34" BorderThickness="12" BorderBrush="Black">
-                  <Border.Effect><BlurEffect Radius="8"/></Border.Effect>
-                </Border>
-              </Grid>
-            </VisualBrush.Visual>
-          </VisualBrush>
-        </Image.OpacityMask>
-      </Image>
+      <!-- over a bright background the glass darkens a touch -->
+      <Rectangle x:Name="OverLightDim" Fill="Black" Opacity="0" IsHitTestVisible="False"/>
 
       <!-- smoke: keeps white type legible over bright windows -->
       <Rectangle>
@@ -93,6 +87,16 @@
       </Rectangle>
 
       </Grid>
+
+      <!-- hover / press glow from the top edge -->
+      <Rectangle x:Name="HoverSheen" Opacity="0" IsHitTestVisible="False">
+        <Rectangle.Fill>
+          <RadialGradientBrush Center="0.5,0" GradientOrigin="0.5,0" RadiusX="0.75" RadiusY="1.1">
+            <GradientStop Color="#40FFFFFF" Offset="0"/>
+            <GradientStop Color="#00FFFFFF" Offset="1"/>
+          </RadialGradientBrush>
+        </Rectangle.Fill>
+      </Rectangle>
 
       <Viewbox Stretch="Uniform">
         <Grid Width="340" Height="200">
@@ -365,14 +369,17 @@
         </Border.BorderBrush>
       </Border>
 
-      <Border x:Name="RimOuter" BorderThickness="1" IsHitTestVisible="False">
+      <!-- faint constant hairline, so the edge never disappears -->
+      <Border x:Name="RimOuter" BorderThickness="1" BorderBrush="#38FFFFFF" IsHitTestVisible="False"/>
+
+      <!-- light rim: angle, position and strength follow the cursor (LiquidGlass.cs) -->
+      <Border x:Name="RimLight" BorderThickness="1.5" IsHitTestVisible="False">
         <Border.BorderBrush>
-          <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-            <GradientStop Color="#FFFFFFFF" Offset="0"/>
-            <GradientStop Color="#73FFFFFF" Offset="0.2"/>
-            <GradientStop Color="#1FFFFFFF" Offset="0.5"/>
-            <GradientStop Color="#33FFFFFF" Offset="0.78"/>
-            <GradientStop Color="#B3FFFFFF" Offset="1"/>
+          <LinearGradientBrush x:Name="RimLightBrush" StartPoint="0.15,0.15" EndPoint="0.85,0.85">
+            <GradientStop Color="#00FFFFFF" Offset="0"/>
+            <GradientStop x:Name="RimLight1" Color="#4DFFFFFF" Offset="0.33"/>
+            <GradientStop x:Name="RimLight2" Color="#BFFFFFFF" Offset="0.66"/>
+            <GradientStop Color="#00FFFFFF" Offset="1"/>
           </LinearGradientBrush>
         </Border.BorderBrush>
       </Border>

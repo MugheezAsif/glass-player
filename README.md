@@ -18,7 +18,8 @@ Late-night vinyl, under glass: a tiny desktop widget that takes its colour from 
 
 ## Highlights
 
-- **Real frosted glass.** The widget blurs whatever sits behind it with its own blur engine: clean 30 px corners, a thick bright rim, a soft lens ring and a faint pink/cyan refraction fringe.
+- **Liquid glass that bends light.** The widget sees what's behind it and refracts it through a thick glass bevel. The edges bend the background inward and split it into red, green and blue, like real glass.
+- **It reacts to you.** As your cursor comes near, the card leans and stretches toward it, and the light on its rim swings round to follow. Hover or press, and a soft glow rises from the top edge.
 - **The cover sets the mood.** One accent colour is pulled from each album cover and carried through the play button, progress line, glow and dots. Every song re-themes the card.
 - **A record that plays.** A vinyl disc (the cover is its label) slides out of the sleeve and spins while music plays, and tucks back in when you pause.
 - **Considered typography.** Editorial serif for the title, a DIN face for the artist, editor-mono numerals for time.
@@ -44,14 +45,19 @@ Late-night vinyl, under glass: a tiny desktop widget that takes its colour from 
 |---|---|
 | **Type** | Title in *Sitka Banner* (high-contrast editorial serif) · artist in *Bahnschrift Light* (DIN) · times and the `NOW PLAYING` label in *Cascadia Mono*. All three ship with Windows, so nothing has to be installed. |
 | **Colour** | The most vivid pixel of the cover becomes the accent (saturation and brightness are pushed into a usable range; grey covers fall back to warm paper white). A second, quieter colour from the cover's corner tints the opposite glow. The glyph on the play disc flips between ink and white based on the accent's luminance. |
-| **Glass** | Captured backdrop → 1/3 scale → 3-pass separable box blur (≈ Gaussian) → vibrance boost. On top: smoke for legibility, a radial album aura, a tiled frosted grain, a glare, and edges drawn in real pixels: 1 px outer hairline, 1 px inner hairline, a soft scaled glow and a refraction fringe. |
-| **Motion** | Entrance is staggered 40 → 580 ms with eased fades and small rises. The play/pause glyph morphs with a spring. Track changes slide the titles, pop the cover and cross-fade the accent. The record slides out with a slight overshoot and spins at 15 fps (the grooves are circular, so it reads smooth). |
+| **Glass** | Captured backdrop → ½ scale → a light 2-pass blur (just frosted, so the bending stays visible) → **refraction** through a 32-unit bevel with **chromatic aberration** → 140% saturation. Over bright backgrounds the glass darkens a touch and bends less. On top: smoke for legibility, a radial album aura, frosted grain, and edges drawn in real pixels: a faint hairline, a **cursor-following light rim**, an inner hairline, a soft glow and a refraction fringe. |
+| **Motion** | Entrance is staggered 40 → 580 ms with eased fades and small rises. The card is **elastic**: within 200 px of the cursor it leans toward it and stretches along that direction, easing back when you leave. The play/pause glyph morphs with a spring. Track changes slide the titles, pop the cover and cross-fade the accent. The record slides out with a slight overshoot and spins at 15 fps (the grooves are circular, so it reads smooth). |
 
 ## Engineering notes
 
 **Talking to Spotify.** `GlobalSystemMediaTransportControlsSessionManager` (Windows media session API) gives title, artist, cover thumbnail, playback state, shuffle and timeline, and exposes play/pause, next, previous, shuffle and seek. There's no Spotify Web API, OAuth or Premium requirement. The progress bar extrapolates position between the app's timeline updates.
 
 **Glass without the grey box.** Windows' built-in blur-behind ignores window regions, so rounded corners showed a grey square. Instead the window marks itself `WDA_EXCLUDEFROMCAPTURE`, which lets it read the screen *behind itself* with GDI. A cheap hash skips work when nothing behind it changed, and the result is shown inside a properly anti-aliased rounded clip with its own drop shadow.
+
+**Liquid glass on the CPU.** The web version of this effect is built from SVG filters (a displacement map plus a separately displaced red, green and blue channel). WPF has no such filter, so Glass Player does it by hand on the small captured backdrop, which costs well under a millisecond:
+- **Lens map:** a lookup built once per size from the rounded card's signed distance field. Inside the bevel, every pixel samples the background further inward along the edge normal (`pull · (1 − d/band)²`).
+- **Colour split:** red, green and blue are sampled at 100%, 90% and 80% of that pull, which gives the coloured fringe.
+- **Elasticity and rim light:** a 60 Hz cursor check drives both, and does nothing (no redraw) once the card has settled.
 
 **Sharp at any size.** The layout scales through a `Viewbox`, which puts things on fractional pixels. Hairlines, glows and the cover art are therefore drawn *outside* it, on whole pixels, with sizes recomputed on resize. Text shadows are separate blurred copies, so the real glyphs are never rasterised by an effect.
 
@@ -87,6 +93,7 @@ Open Spotify and the player appears. Windows 11 parks new tray icons under the *
 ```
 MainWindow.xaml(.cs)   layout · media session · glass engine · drag/resize · placement
 Deck.cs                record slide/spin · album accent · staggered entrance · grain
+LiquidGlass.cs         refraction · chromatic aberration · elasticity · cursor rim light · over-light
 Showcase.cs            renders the README images and the preview animation
 Tray.cs                tray icon, menu, start with Windows
 App.xaml(.cs)          button styles · single instance
@@ -103,6 +110,10 @@ tools/                 make-icon.ps1 (app icon) · make-showcase.ps1 (README med
 - Because it reads what's behind it, the widget is excluded from screenshots and screen sharing.
 - It controls the Spotify **desktop** app on the same PC. It doesn't reach Spotify on other devices or in the browser.
 - Liking, playlists and queue aren't available through Windows' media controls.
+
+## Credits
+
+The liquid-glass behaviour (edge refraction, chromatic aberration, elasticity, the cursor-following rim light and the over-light mode) is a WPF port of ideas from [liquid-glass-react](https://github.com/rdev/liquid-glass-react) by rdev (MIT), which builds on [shuding/liquid-glass](https://github.com/shuding/liquid-glass).
 
 ## License
 

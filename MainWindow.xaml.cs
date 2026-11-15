@@ -46,6 +46,8 @@ public partial class MainWindow : Window
         InitializeComponent();
         Grain.Fill = MakeGrain();
         BuildSpin();
+        StartLiquidMouse();
+        UpdateRimLight(0, 0);
         ApplySettings();
         SourceInitialized += (_, _) =>
         {
@@ -56,7 +58,10 @@ public partial class MainWindow : Window
         };
         Card.SizeChanged += (_, _) => UpdateCorners();
         MouseEnter += (_, _) => Fade(CloseBtn, 1);
-        MouseLeave += (_, _) => { Fade(CloseBtn, 0); Cursor = null; };
+        MouseLeave += (_, _) => { Fade(CloseBtn, 0); Cursor = null; Animate(HoverSheen, OpacityProperty, 0, 300); };
+        MouseEnter += (_, _) => Animate(HoverSheen, OpacityProperty, 0.6, 200);
+        PreviewMouseLeftButtonDown += (_, _) => Animate(HoverSheen, OpacityProperty, 1, 80);
+        PreviewMouseLeftButtonUp += (_, _) => Animate(HoverSheen, OpacityProperty, 0.6, 250);
         Track.MouseEnter += (_, _) => { Animate(TrackBar, HeightProperty, 5.5, 160); Animate(Knob, WidthProperty, 13, 160); Animate(Knob, HeightProperty, 13, 160); };
         Track.MouseLeave += (_, _) => { Animate(TrackBar, HeightProperty, 3.5, 220); Animate(Knob, WidthProperty, 9, 220); Animate(Knob, HeightProperty, 9, 220); };
         Knob.SizeChanged += (_, _) => UpdateProgress();
@@ -369,6 +374,7 @@ public partial class MainWindow : Window
         ArtRim.CornerRadius = new CornerRadius(ar);
         // Hairlines stay exactly 1px; the soft glow and fringe grow with the card.
         RimOuter.CornerRadius = new CornerRadius(r);
+        RimLight.CornerRadius = new CornerRadius(r);
         RimInner.CornerRadius = new CornerRadius(Math.Max(0, r - 1));
         RimGlow.CornerRadius = new CornerRadius(r);
         RimGlow.BorderThickness = new Thickness(9 * s);
@@ -383,7 +389,7 @@ public partial class MainWindow : Window
     // blur it on the CPU (tiny image, so it's cheap) and show it stretched behind the card.
 
     const uint WDA_EXCLUDEFROMCAPTURE = 0x11;
-    const int Downscale = 3, BlurRadius = 3, BlurPasses = 3;
+    const int Downscale = 2, BlurRadius = 1, BlurPasses = 2;   // light frost, so the refraction stays visible
 
     [DllImport("user32.dll")] static extern bool SetWindowDisplayAffinity(IntPtr hwnd, uint affinity);
     [DllImport("user32.dll")] static extern bool GetWindowRect(IntPtr hwnd, out RECT r);
@@ -460,7 +466,9 @@ public partial class MainWindow : Window
     // Blur + vibrance a small BGRA copy of what's behind the card and show it as the glass.
     void ApplyBackdrop(byte[] px, int sw, int sh)
     {
+        MeasureLight(px);
         for (int p = 0; p < BlurPasses; p++) { BoxBlur(px, sw, sh, BlurRadius, true); BoxBlur(px, sw, sh, BlurRadius, false); }
+        px = Refract(px, sw, sh);
         Vibrance(px);
 
         var src = BitmapSource.Create(sw, sh, 96, 96, PixelFormats.Bgr32, null, px, sw * 4);
@@ -502,9 +510,9 @@ public partial class MainWindow : Window
         {
             double b = px[i], g = px[i + 1], r = px[i + 2];
             double lum = 0.299 * r + 0.587 * g + 0.114 * b;
-            px[i] = (byte)Math.Clamp(lum + (b - lum) * 1.3, 0, 255);
-            px[i + 1] = (byte)Math.Clamp(lum + (g - lum) * 1.3, 0, 255);
-            px[i + 2] = (byte)Math.Clamp(lum + (r - lum) * 1.3, 0, 255);
+            px[i] = (byte)Math.Clamp(lum + (b - lum) * 1.4, 0, 255);
+            px[i + 1] = (byte)Math.Clamp(lum + (g - lum) * 1.4, 0, 255);
+            px[i + 2] = (byte)Math.Clamp(lum + (r - lum) * 1.4, 0, 255);
             px[i + 3] = 255;
         }
     }

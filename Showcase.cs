@@ -89,8 +89,13 @@ public partial class MainWindow
         var px = new byte[sw * sh * 4];
         small.CopyPixels(px, sw * 4, 0);
         ApplyBackdrop(px, sw, sh);
+        if (Environment.GetEnvironmentVariable("GLASSPLAYER_DUMPGLASS") is string dump && Backdrop.Source is BitmapSource glass)
+            Save(glass, IOPath.Combine(dump, $"glass-{s.Name}.png"));
 
         UpdateProgress();
+        // a pretend cursor just off the top-right corner: the card leans toward it and the rim light swings round
+        double cardW = ActualWidth - 2 * Pad, cardH = ActualHeight - 2 * Pad;
+        ApplyLiquid(cardW / 2 + 70, -cardH / 2 - 40, cardW, cardH, smooth: false);
         await Task.Delay(1300);   // let the colour, cover and record animations settle
     }
 
@@ -213,6 +218,20 @@ public partial class MainWindow
             };
             c.Children.Add(p);
             c.Children.Add(new System.Windows.Shapes.Path { Data = Geometry.Parse(paths[i]), Stroke = new SolidColorBrush(Color.FromArgb(70, 255, 255, 255)), StrokeThickness = 1.2, Effect = new BlurEffect { Radius = 1.5 } });
+        }
+
+        // fine flowing contour lines (think rice terraces): detail for the glass to visibly bend
+        var line = Hex(ribbons[0]);
+        for (int i = 0; i < 16; i++)
+        {
+            double y = -20 + i * 30;
+            c.Children.Add(new System.Windows.Shapes.Path
+            {
+                Data = Geometry.Parse(string.Format(CultureInfo.InvariantCulture,
+                    "M -40,{0} C 200,{1} 520,{2} 800,{3}", y + 40, y - 30, y + 70, y)),
+                Stroke = new SolidColorBrush(Color.FromArgb((byte)(i % 3 == 0 ? 120 : 60), line.R, line.G, line.B)),
+                StrokeThickness = i % 3 == 0 ? 5 : 3,
+            });
         }
         return c;
     }
